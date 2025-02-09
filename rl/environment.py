@@ -212,10 +212,8 @@ def edge_guard_reward(
 
     return reward
 
-
 def knockout_reward(
     env: "WarehouseBrawl",
-    agent: str = "player",
     mode: RewardMode = PARAMS.REWARD_MODE,
     knockout_value_opponent: float = PARAMS.KNOCKOUT_VALUE_OPPONENT,
     knockout_value_player: float = PARAMS.KNOCKOUT_VALUE_PLAYER,
@@ -230,7 +228,6 @@ def knockout_reward(
 
     Args:
         env (WarehouseBrawl): The game environment
-        agent(str): The agent that was knocked out
         mode (RewardMode): Reward mode, one of RewardMode
         knockout_value_opponent (float): Reward value for knocking out opponent
         knockout_value_player (float): Reward penalty for player being knocked out
@@ -239,8 +236,16 @@ def knockout_reward(
         float: The computed reward.
     """
     reward = 0.0
-
+    player_state = env.objects["player"].state
+    opponent_state = env.objects["opponent"].state
     
+    player_inKO = player_state == "KO"
+    opponent_inKO = opponent_state == "KO"
+
+    agent = "player" if player_inKO else "opponent" if opponent_inKO else None
+
+    if agent is None:
+        return reward
 
     # Mode logic to compute reward
     if mode == RewardMode.ASYMMETRIC_OPPONENT:
@@ -255,11 +260,10 @@ def knockout_reward(
         if agent == "player":
             reward = -knockout_value_player  # Penalty for player getting knocked out
 
-    return reward
+    return reward / 3 / 30
 
 def win_reward(
     env: "WarehouseBrawl",
-    agent: str = "player",
     win_value: float = PARAMS.WIN_VALUE,
     lose_value: float = PARAMS.LOSE_VALUE
 ) -> float:
@@ -277,6 +281,14 @@ def win_reward(
     Returns:
         float: The computed reward.
     """
+    
+    player_stats = env.get_stats(0)
+    opponent_stats = env.get_stats(1)
 
-    reward = win_value if agent == "player" else -lose_value
-    return reward
+    is_opponent_lost = opponent_stats.lives_left == 0
+    is_player_lost = player_stats.lives_left == 0
+
+    if is_opponent_lost:
+        return win_value
+    elif is_player_lost:
+        return lose_value

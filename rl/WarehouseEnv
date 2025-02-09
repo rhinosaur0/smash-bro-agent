@@ -1,5 +1,4 @@
 # wareHouseEnv.py
-# code provided by the competition organizers
 
 import shutil
 import gdown

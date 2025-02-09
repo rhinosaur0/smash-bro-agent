@@ -8,8 +8,10 @@ class RewardMode(Enum):
     SYMMETRIC = 1
     ASYMMETRIC_DEFENSIVE = 2
 
+# panalties shall be negative values
+
 class Hyperparameters:
-    def __init__(self, 
+    def __init__(self,   
                  WIN_VALUE: float = 300.0, 
                  LOSE_VALUE: float = 200.0, 
                  KNOCKOUT_VALUE_PLAYER: float = 100.0, 
@@ -20,8 +22,6 @@ class Hyperparameters:
                  MOVE_TO_OPPONENT_SCALE: float = 1.0, 
                  EDGE_GUARD_SUCCESS: float = 50.0, 
                  EDGE_GUARD_FAIL: float = 0.0, 
-                 PENALTY_PLAYER_KNOCKOUT: float = -100.0, 
-                 PENALTY_OPPONENT_KNOCKOUT: float = -100.0, 
                  ZONE_HEIGHT: float = 4.2, 
                  ZONE_WIDTH: float = 10.67,
                  ZONE_PENALTY: float = -20.0, 
@@ -36,8 +36,6 @@ class Hyperparameters:
         self.MOVE_TO_OPPONENT_SCALE = MOVE_TO_OPPONENT_SCALE
         self.EDGE_GUARD_SUCCESS = EDGE_GUARD_SUCCESS
         self.EDGE_GUARD_FAIL = EDGE_GUARD_FAIL
-        self.PENALTY_PLAYER_KNOCKOUT = PENALTY_PLAYER_KNOCKOUT
-        self.PENALTY_OPPONENT_KNOCKOUT = PENALTY_OPPONENT_KNOCKOUT
         self.ZONE_HEIGHT = ZONE_HEIGHT
         self.ZONE_WIDTH = ZONE_WIDTH
         self.ZONE_PENALTY = ZONE_PENALTY
@@ -58,8 +56,6 @@ OFFENSIVE_AGENT_PARAMS = Hyperparameters(
     MOVE_TO_OPPONENT_SCALE = 1.0,
     EDGE_GUARD_SUCCESS = 50.0,
     EDGE_GUARD_FAIL = 0.0,
-    PENALTY_PLAYER_KNOCKOUT = -100.0,
-    PENALTY_OPPONENT_KNOCKOUT = -100.0,
     ZONE_HEIGHT = 4.2,
     ZONE_PENALTY = -20.0,
     REWARD_MODE = RewardMode.ASYMMETRIC_OFFENSIVE
@@ -76,8 +72,6 @@ DEFENSIVE_AGENT_PARAMS = Hyperparameters(
     MOVE_TO_OPPONENT_SCALE = 1.0,
     EDGE_GUARD_SUCCESS = 50.0,
     EDGE_GUARD_FAIL = -25.0,
-    PENALTY_PLAYER_KNOCKOUT = -100.0,
-    PENALTY_OPPONENT_KNOCKOUT = -100.0,
     ZONE_HEIGHT = 4.2,
     ZONE_PENALTY = -20.0,
     REWARD_MODE = RewardMode.ASYMMETRIC_DEFENSIVE
