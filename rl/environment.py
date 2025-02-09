@@ -1,57 +1,62 @@
+# environment.py 
+# requires hyperparam.py
+# Reward functions for the WarehouseBrawl environment
+
 from enum import Enum
 from typing import List, Tuple
-from rlbot.environment import Environment
-# Agents
-env.objects["player"]
-env.objects["opponent"]
 
-# Agent Position
-env.objects["player"].body.position.x   # X position during frame
-env.objects["player"].body.position.y   # Y position during frame
+import numpy as np
+from hyperparam import RewardMode
+from hyperparam import DEFAULT_PARAMS as PARAMS
 
-env.objects["player"].body.position.x_change  # Change in x direction position between frames
-env.objects["player"].body.position.y_change  # Change in y direction position between frames
+# replace it with your own env
+# from WarehouseEnv import WarehouseBrawl
 
-env.objects["player"].body.velocity.x # X velocity of agent
-env.objects["player"].body.velocity.y # Y velocity of agent
+# env = WarehouseBrawl()
 
-# Agent Charachteristics
-env.objects["player"].DamageTakenTotal      # Integer value of total damage taken
-env.objects["player"].DamageTakenThisStock  # Integer value of damage taken this stock life
-env.objects["player"].DamageTakenThisFrame  # Integer value
-env.objects["player"].WeaponHeldThisFrame   # True or False
+# # Environment variables available
+# # Agents
+# env.objects["player"]
+# env.objects["opponent"]
 
-# Time
-env.time_elapsed  # Time that has elapsed since start of game
-env.current_frame # Current frame number
+# # Agent Position
+# env.objects["player"].body.position.x   # X position during frame
+# env.objects["player"].body.position.y   # Y position during frame
 
-# Platforms
-env.objects['ground']
-env.objects['platform1']
-env.objects['platform2']
+# env.objects["player"].body.position.x_change  # Change in x direction position between frames
+# env.objects["player"].body.position.y_change  # Change in y direction position between frames
+
+# env.objects["player"].body.velocity.x # X velocity of agent
+# env.objects["player"].body.velocity.y # Y velocity of agent
+
+# # Agent Charachteristics
+# env.objects["player"].DamageTakenTotal      # Integer value of total damage taken
+# env.objects["player"].DamageTakenThisStock  # Integer value of damage taken this stock life
+# env.objects["player"].DamageTakenThisFrame  # Integer value
+# env.objects["player"].WeaponHeldThisFrame   # True or False
+
+# # Time
+# env.time_elapsed  # Time that has elapsed since start of game
+# env.current_frame # Current frame number
+
+# # Platforms
+# env.objects['ground']
+# env.objects['platform1']
+# env.objects['platform2']
 
 # Signals
-knockout_signal = Signal()
-knockout_signal.connect(knockout_reward)
-knockout_signal.emit(agent="player") # Triggered when an agent is knocked out
+# knockout_signal = Signal()
+# knockout_signal.connect(knockout_reward)
+# knockout_signal.emit(agent="player") # Triggered when an agent is knocked out
 
-win_signal = Signal()
-win_signal.connect(win_reward)
-win_signal.emit(agent="player") # Triggered when the player wins
+# win_signal = Signal()
+# win_signal.connect(win_reward)
+# win_signal.emit(agent="player") # Triggered when the player wins
 
-class RewardMode(Enum):
-    ASYMMETRIC_OFFENSIVE = 0
-    SYMMETRIC = 1
-    ASYMMETRIC_DEFENSIVE = 2
-
-class RewardMode2(Enum):
-    ASYMMETRIC_OPPONENT = 0
-    SYMMETRIC = 1
-    ASYMMETRIC_PLAYER = 2
 
 def damage_interaction_reward(
-    env: WarehouseBrawl,
-    mode: RewardMode = RewardMode.SYMMETRIC,
+    env: "WarehouseBrawl",
+    mode: RewardMode = PARAMS.REWARD_MODE,
 ) -> float:
     """
     Computes the reward based on damage interactions between players.
@@ -69,8 +74,8 @@ def damage_interaction_reward(
         float: The computed reward.
     """
     # Getting player and opponent from the enviornment
-    player: Player = env.objects["player"]
-    opponent: Player = env.objects["opponent"]
+    player: "Player" = env.objects["player"]
+    opponent: "Player" = env.objects["opponent"]
 
     # Reward dependent on the mode
     damage_taken = player.damage_taken_this_frame
@@ -88,9 +93,9 @@ def damage_interaction_reward(
     return reward
 
 def danger_zone_reward(
-    env: WarehouseBrawl,
-    zone_penalty: int = 1,
-    zone_height: float = 4.2
+    env: "WarehouseBrawl",
+    zone_penalty: int = PARAMS.ZONE_PENALTY,
+    zone_height: float = PARAMS.ZONE_HEIGHT,
 ) -> float:
     """
     Applies a penalty for every time frame player surpases a certain height threshold in the environment.
@@ -104,16 +109,17 @@ def danger_zone_reward(
         float: The computed penalty as a tensor.
     """
     # Get player object from the environment
-    player: Player = env.objects["player"]
+    player: "Player" = env.objects["player"]
 
     # Apply penalty if the player is in the danger zone
     reward = -zone_penalty if player.body.position.y >= zone_height else 0.0
 
     return reward
 
+# Prolly ignore this, no weapons in the game
 def stock_advantage_reward(
-    env: WarehouseBrawl,
-    success_value: float = 0, #TODO
+    env: "WarehouseBrawl",
+    success_value: float = PARAMS.STOCK_SUCCESS_VALUE,
 ) -> float:
 
     """
@@ -125,13 +131,15 @@ def stock_advantage_reward(
     Returns:
         float: The computed reward.
     """
+
     reward = 0.0
-    # TODO: Write the function
+    reward += success_value if env.objects["player"].WeaponHeldThisFrame else 0.0
 
     return reward
 
 def move_to_opponent_reward(
-    env: WarehouseBrawl,
+    env: "WarehouseBrawl",
+    reward_scale: float = PARAMS.MOVE_TO_OPPONENT_SCALE,
 ) -> float:
     """
     Computes the reward based on whether the agent is moving toward the opponent.
@@ -145,8 +153,8 @@ def move_to_opponent_reward(
         float: The computed reward
     """
     # Getting agent and opponent from the enviornment
-    player: Player = env.objects["player"]
-    opponent: Player = env.objects["opponent"]
+    player: "Player" = env.objects["player"]
+    opponent: "Player" = env.objects["opponent"]
 
     # Extracting player velocity and position from environment
     player_position_dif = np.array([player.body.position.x_change, player.body.position.y_change])
@@ -167,11 +175,11 @@ def move_to_opponent_reward(
 
     return reward
 
-
 def edge_guard_reward(
-    env: WarehouseBrawl,
-    success_value: float = 0, #TODO
-    fail_value: float = 0,    #TODO
+    env: "WarehouseBrawl",
+    success_value: float = PARAMS.EDGE_GUARD_SUCCESS,
+    fail_value: float = PARAMS.EDGE_GUARD_FAIL,
+    zone_width: float = PARAMS.ZONE_WIDTH,
 ) -> float:
 
     """
@@ -186,18 +194,31 @@ def edge_guard_reward(
         float: The computed reward.
     """
     reward = 0.0
-    # TODO: Write the function
+
+    a: int | float = 2
+
+    # condtion not met
+    if  (abs(env.objects["player"].body.position.x) < zone_width/2 - a or # player in the middle
+         abs(env.objects["opponent"].body.position.x) < zone_width/2 - a or # opponent in the middle
+         env.objects["player"].body.position.x * env.objects["opponent"].body.position.x < 0 # both players are not on the same edge
+         ):
+        return reward
+    
+    # condition met
+    if env.objects["opponent"].demange_taken_this_frame > 0:
+        reward = success_value
+    elif env.objects["player"].demange_taken_this_frame > 0:
+        reward = fail_value
 
     return reward
 
+
 def knockout_reward(
-    env: WarehouseBrawl,
+    env: "WarehouseBrawl",
     agent: str = "player",
-    mode: RewardMode = RewardMode.SYMMETRIC,
-    knockout_value_opponent: float = 50.0,
-    knockout_value_player: float = 50.0,
-
-
+    mode: RewardMode = PARAMS.REWARD_MODE,
+    knockout_value_opponent: float = PARAMS.KNOCKOUT_VALUE_OPPONENT,
+    knockout_value_player: float = PARAMS.KNOCKOUT_VALUE_PLAYER,
 ) -> float:
     """
     Computes the reward based on who won the match.
@@ -219,6 +240,8 @@ def knockout_reward(
     """
     reward = 0.0
 
+    
+
     # Mode logic to compute reward
     if mode == RewardMode.ASYMMETRIC_OPPONENT:
         if agent == "opponent":
@@ -235,10 +258,10 @@ def knockout_reward(
     return reward
 
 def win_reward(
-    env: WarehouseBrawl,
+    env: "WarehouseBrawl",
     agent: str = "player",
-    win_value: float = 300.0,
-    lose_value: float = 200.0,
+    win_value: float = PARAMS.WIN_VALUE,
+    lose_value: float = PARAMS.LOSE_VALUE
 ) -> float:
 
     """
