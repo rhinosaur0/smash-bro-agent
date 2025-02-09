@@ -4,6 +4,11 @@
 from enum import Enum
 
 class RewardMode(Enum):
+    ASYMMETRIC_OPPONENT = 0
+    SYMMETRIC = 1
+    ASYMMETRIC_PLAYER = 2
+
+class DamageRewardMode(Enum):
     ASYMMETRIC_OFFENSIVE = 0
     SYMMETRIC = 1
     ASYMMETRIC_DEFENSIVE = 2
@@ -22,10 +27,13 @@ class Hyperparameters:
                  MOVE_TO_OPPONENT_SCALE: float = 1.0, 
                  EDGE_GUARD_SUCCESS: float = 50.0, 
                  EDGE_GUARD_FAIL: float = 0.0, 
+                
                  ZONE_HEIGHT: float = 4.2, 
                  ZONE_WIDTH: float = 10.67,
                  ZONE_PENALTY: float = -20.0, 
-                 REWARD_MODE: int = RewardMode.SYMMETRIC) -> None:
+                 REWARD_MODE: int = RewardMode.SYMMETRIC,
+                 DAMAGE_REWARD_MODE: int = DamageRewardMode.SYMMETRIC
+                 ) -> None:
         self.WIN_VALUE = WIN_VALUE
         self.LOSE_VALUE = LOSE_VALUE
         self.KNOCKOUT_VALUE_PLAYER = KNOCKOUT_VALUE_PLAYER
@@ -40,7 +48,7 @@ class Hyperparameters:
         self.ZONE_WIDTH = ZONE_WIDTH
         self.ZONE_PENALTY = ZONE_PENALTY
         self.REWARD_MODE = REWARD_MODE
-
+        self.DAMAGE_REWARD_MODE = DAMAGE_REWARD_MODE
 
 # create an object of class hyperparameters that has default reward values
 DEFAULT_PARAMS = Hyperparameters()
@@ -58,7 +66,8 @@ OFFENSIVE_AGENT_PARAMS = Hyperparameters(
     EDGE_GUARD_FAIL = 0.0,
     ZONE_HEIGHT = 4.2,
     ZONE_PENALTY = -20.0,
-    REWARD_MODE = RewardMode.ASYMMETRIC_OFFENSIVE
+    REWARD_MODE = RewardMode.SYMMETRIC,
+    DAMAGE_REWARD_MODE = DamageRewardMode.ASYMMETRIC_OFFENSIVE
 )
 # create an an object of class hyperparameters that has really defensive reward values
 DEFENSIVE_AGENT_PARAMS = Hyperparameters(
@@ -74,5 +83,6 @@ DEFENSIVE_AGENT_PARAMS = Hyperparameters(
     EDGE_GUARD_FAIL = -25.0,
     ZONE_HEIGHT = 4.2,
     ZONE_PENALTY = -20.0,
-    REWARD_MODE = RewardMode.ASYMMETRIC_DEFENSIVE
+    REWARD_MODE = RewardMode.SYMMETRIC,
+    DAMAGE_REWARD_MODE = DamageRewardMode.ASYMMETRIC_DEFENSIVE
 )

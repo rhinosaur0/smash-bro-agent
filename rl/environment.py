@@ -6,7 +6,7 @@ from enum import Enum
 from typing import List, Tuple
 
 import numpy as np
-from hyperparam import RewardMode
+from hyperparam import RewardMode, DamageRewardMode
 from hyperparam import DEFAULT_PARAMS as PARAMS
 
 # replace it with your own env
@@ -56,7 +56,7 @@ from hyperparam import DEFAULT_PARAMS as PARAMS
 
 def damage_interaction_reward(
     env: "WarehouseBrawl",
-    mode: RewardMode = PARAMS.REWARD_MODE,
+    mode: DamageRewardMode = PARAMS.DAMAGE_REWARD_MODE,
 ) -> float:
     """
     Computes the reward based on damage interactions between players.
@@ -81,11 +81,11 @@ def damage_interaction_reward(
     damage_taken = player.damage_taken_this_frame
     damage_dealt = opponent.damage_taken_this_frame
 
-    if mode == RewardMode.ASYMMETRIC_OFFENSIVE:
+    if mode == DamageRewardMode.ASYMMETRIC_OFFENSIVE:
         reward = damage_dealt
-    elif mode == RewardMode.SYMMETRIC:
+    elif mode == DamageRewardMode.SYMMETRIC:
         reward = damage_dealt - damage_taken
-    elif mode == RewardMode.ASYMMETRIC_DEFENSIVE:
+    elif mode == DamageRewardMode.ASYMMETRIC_DEFENSIVE:
         reward = -damage_taken
     else:
         raise ValueError(f"Invalid mode: {mode}")
