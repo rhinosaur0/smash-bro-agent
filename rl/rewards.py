@@ -134,27 +134,6 @@ def danger_zone_reward(
 
     return reward
 
-# Prolly ignore this, no weapons in the game
-def stock_advantage_reward(
-    env: "WarehouseBrawl",
-    success_value: float = PARAMS.STOCK_SUCCESS_VALUE,
-) -> float:
-
-    """
-    Computes the reward given for every time step your agent is edge guarding the opponent.
-
-    Args:
-        env (WarehouseBrawl): The game environment
-        success_value (float): Reward value related to having/gaining a weapon (however you define it)
-    Returns:
-        float: The computed reward.
-    """
-
-    reward = 0.0
-    reward += success_value if env.objects["player"].WeaponHeldThisFrame else 0.0
-
-    return reward
-
 def move_to_opponent_reward(
     env: "WarehouseBrawl",
     reward_scale: float = PARAMS.MOVE_TO_OPPONENT_SCALE,
@@ -175,7 +154,7 @@ def move_to_opponent_reward(
     opponent: "Player" = env.objects["opponent"]
 
     # Extracting player velocity and position from environment
-    player_position_dif = np.array([player.body.position.x_change, player.body.position.y_change])
+    player_position_dif = np.array([player.body.velocity.x * env.dt , player.body.velocity.y * env.dt])
 
     direction_to_opponent = np.array([opponent.body.position.x - player.body.position.x,
                                       opponent.body.position.y - player.body.position.y])
@@ -317,7 +296,6 @@ REWARD_FUNCTION_WEIGHTS: dict[callable, float | int] = {
     damage_interaction_reward: 1,
     damage_interaction_reward: 1,
     danger_zone_reward: 5,
-    stock_advantage_reward: 1,
     move_to_opponent_reward: 1,
     edge_guard_reward: 1,
     knockout_reward: 5,
