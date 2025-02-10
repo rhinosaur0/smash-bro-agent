@@ -14,7 +14,6 @@ class DamageRewardMode(Enum):
     ASYMMETRIC_DEFENSIVE = 2
 
 # panalties shall be negative values
-
 class Hyperparameters:
     def __init__(self,   
                  WIN_VALUE: float = 300.0, 
@@ -27,7 +26,7 @@ class Hyperparameters:
                  MOVE_TO_OPPONENT_SCALE: float = 1.0, 
                  EDGE_GUARD_SUCCESS: float = 50.0, 
                  EDGE_GUARD_FAIL: float = 0.0, 
-                
+                 DAMAGE_REWARD_SCALE: float = 0.01,
                  ZONE_HEIGHT: float = 4.2, 
                  ZONE_WIDTH: float = 10.67,
                  ZONE_PENALTY: float = -20.0, 
@@ -42,6 +41,7 @@ class Hyperparameters:
         self.FAIL_VALUE = FAIL_VALUE
         self.STOCK_SUCCESS_VALUE = STOCK_SUCCESS_VALUE
         self.MOVE_TO_OPPONENT_SCALE = MOVE_TO_OPPONENT_SCALE
+        self.DAMAGE_REWARD_SCALE = DAMAGE_REWARD_SCALE
         self.EDGE_GUARD_SUCCESS = EDGE_GUARD_SUCCESS
         self.EDGE_GUARD_FAIL = EDGE_GUARD_FAIL
         self.ZONE_HEIGHT = ZONE_HEIGHT

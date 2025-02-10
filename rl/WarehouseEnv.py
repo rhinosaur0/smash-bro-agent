@@ -3761,9 +3761,9 @@ def run_match(agent_1: Agent | partial, agent_2: Agent | partial, max_timesteps=
 # ## Training Function
 #%%
 def train(agent: Agent,
-          reward_functions: dict[str, Callable],
-          selfplay_handler: SelfPlayHandler,
-          save_handler: SaveHandler,
+          reward_manager: RewardManager,
+          selfplay_handler: SelfPlayHandler, #TODO
+          save_handler: SaveHandler, 
           opponent_cfg: OpponentsCfg,
           resolution: CameraResolution=CameraResolution.LOW,
           train_timesteps: int=400_000,
@@ -3775,9 +3775,9 @@ def train(agent: Agent,
                                  resolution=resolution
                                  )
 
-    my_agent.get_env_info(env)
+    agent.get_env_info(env)
     env.on_training_start()
-    my_agent.learn(env, total_timesteps=train_timesteps, verbose=1)
+    agent.learn(env, total_timesteps=train_timesteps, verbose=1)
     env.on_training_end()
 #%% md
 # # SUBMISSION: Additional Imports

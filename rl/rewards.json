@@ -1,9 +1,0 @@
-{
-  "damage_interaction_reward": 1,
-  "danger_zone_reward": 5,
-  "stock_advantage_reward": 1,
-  "move_to_opponent_reward": 1,
-  "edge_guard_reward": 1,
-  "knockout_reward": 5,
-  "win_reward": 5
-}
