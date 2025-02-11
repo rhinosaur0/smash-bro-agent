@@ -71,7 +71,7 @@ OFFENSIVE_AGENT_PARAMS = Hyperparameters(
     REWARD_MODE = RewardMode.SYMMETRIC,
     DAMAGE_REWARD_MODE = DamageRewardMode.ASYMMETRIC_OFFENSIVE
 )
-# create an an object of class hyperparameters that has really defensive reward values
+# create an object of class hyperparameters that has really defensive reward values
 DEFENSIVE_AGENT_PARAMS = Hyperparameters(
     WIN_VALUE = 300.0,
     LOSE_VALUE = 200.0,
