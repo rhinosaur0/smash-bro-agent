@@ -16,8 +16,8 @@ class DamageRewardMode(Enum):
 # panalties shall be negative values
 class Hyperparameters:
     def __init__(self,   
-                 WIN_VALUE: float = 300.0, 
-                 LOSE_VALUE: float = 200.0, 
+                 WIN_VALUE: float = 30.0,
+                 LOSE_VALUE: float = 30.0,
                  KNOCKOUT_VALUE_PLAYER: float = 100.0, 
                  KNOCKOUT_VALUE_OPPONENT: float = 100.0, 
                  SUCCESS_VALUE: float = 50.0, 

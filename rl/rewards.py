@@ -62,21 +62,13 @@ import os
 
 
 LOG_FILE = "/content/logs/reward_log.txt"
-reward_totals: dict
+reward_totals: dict = defaultdict(float)
 
 
 def set_log_file_path(path: str):
     global LOG_FILE
     LOG_FILE = path
 
-
-# Ensure the directory exists
-
-def log_rewards():
-    """Writes the aggregate reward totals to a log file."""
-    with open(LOG_FILE, "w") as f:
-        for reward_name, total in reward_totals.items():
-            f.write(f"{reward_name}: {total}\n")
 
 
 # usage: in process @ reward_manager() call log_rewards() at the end
@@ -360,45 +352,56 @@ def win_reward(
 
 @track_reward
 def toward_centre_reward(
-        env: "WarehouseBrawl",
-        reward_scale: float = PARAMS.TOWARD_CENTRE_SCALE,
+    env: "WarehouseBrawl",
+    reward_scale: float = PARAMS.TOWARD_CENTRE_SCALE,
+
 ) -> float:
     """
-    Computes the reward based on whether the agent is moving toward the centre of the stage.
+    Applies a penalty for every time frame player surpases a certain height threshold in the environment.
 
-    :param env: The game environment
-    :param reward_scale: The scale of the reward
-    :return: The computed reward
+    Args:
+        env (WarehouseBrawl): The game environment.
+        zone_penalty (int): The penalty applied when the player is in the danger zone.
+        zone_height (float): The height threshold defining the danger zone.
+
+    Returns:
+        float: The computed penalty as a tensor.
     """
+    # Get player object from the environment
     player: "Player" = env.objects["player"]
-    centre = 0
-    player_position = player.body.position.x
 
-    reward = reward_scale * abs(centre - player_position)
+    # Apply penalty if the player is in the danger zone
+    multiplier = -1 if player.body.position.x > 0 else 1
+    reward = multiplier * (player.body.position.x - player.prev_x)
 
-    return reward
+    return reward * reward_scale
 
 
 REWARD_FUNCTION_WEIGHTS: dict[callable, float | int] = {
     damage_dealt_reward: 1000,
-    damage_taken_reward: 1000,
-    danger_zone_reward: 0.06,
-    move_to_opponent_reward: 10000,
+    damage_taken_reward: 10,
+    danger_zone_reward: 0.006,
+    move_to_opponent_reward: 100000,
     edge_guard_reward: 0.001,
     knockout_reward: 0.4,
-    toward_centre_reward: 0.0005,
-    win_reward: 0.001
+    toward_centre_reward: 0.005,
+    win_reward: 0.1
 }
-
-
+# Ensure the directory exists
 def reward_initialize():
     global reward_totals
     os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
     reward_totals = defaultdict(float)
     for func in REWARD_FUNCTION_WEIGHTS.keys():
         reward_totals[func.__name__] = 0.0
-    log_rewards()
 
+def log_rewards():
+    global reward_totals
+    """Writes the aggregate reward totals to a log file."""
+    with open(LOG_FILE, "w") as f:
+        for reward_name, total in reward_totals.items():
+            f.write(f"{reward_name}: {total}\n")
+    reward_initialize()
 
 reward_initialize()
 
