@@ -347,7 +347,7 @@ REWARD_FUNCTION_WEIGHTS: dict[callable, float | int] = {
 }
 
 
-def reward_initialize():
+def reward_initialize() -> None:
     """
     Initializes the reward tracking system.
     """
@@ -358,16 +358,22 @@ def reward_initialize():
         reward_totals[func.__name__] = 0.0
 
 
-def log_rewards():
+def log_rewards(do_log_now: bool = False, block_verbose: bool = False) -> None:
     """
-    Writes the aggregate reward totals to a log file.
+    Writes the aggregate reward totals to a log file and prints the statistics.
+
+
+    :param do_log_now: Whether to log the rewards now.
+    :type do_log_now: bool
+    :param block_verbose: Whether to block verbose output.
+    :type block_verbose: bool
     """
     global reward_totals, temp
     with open(_LOG_FILE, "w") as f:
         for reward_name, total in reward_totals.items():
             f.write(f"{reward_name}: {total}\n")
-    if _REWARD_VERBOSE and temp % _RELOAD_FREQUENCY == 0:
-        print_statistics()
+    if (_REWARD_VERBOSE and temp % _RELOAD_FREQUENCY == 0) or do_log_now:
+        print_statistics() if not block_verbose else None
         reward_initialize()
         temp = 0
     temp += 1
