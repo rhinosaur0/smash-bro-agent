@@ -23,13 +23,14 @@ class Hyperparameters:
                  SUCCESS_VALUE: float = 50.0, 
                  FAIL_VALUE: float = 0.0, 
                  STOCK_SUCCESS_VALUE: float = 150.0, 
-                 MOVE_TO_OPPONENT_SCALE: float = 1.0, 
-                 EDGE_GUARD_SUCCESS: float = 50.0, 
-                 EDGE_GUARD_FAIL: float = 0.0, 
-                 DAMAGE_REWARD_SCALE: float = 0.01,
-                 ZONE_HEIGHT: float = 4.2, 
+                 MOVE_TO_OPPONENT_SCALE: float = 1,
+                 EDGE_GUARD_SUCCESS: float = 50.0,
+                 EDGE_GUARD_FAIL: float = 0.0,
+                 TOWARD_CENTRE_SCALE: float = 0.1,
+                 DAMAGE_REWARD_SCALE: float = 1,
+                 ZONE_HEIGHT: float = 7,
                  ZONE_WIDTH: float = 10.67,
-                 ZONE_PENALTY: float = -20.0, 
+                 ZONE_PENALTY: float = -20.0,
                  REWARD_MODE: int = RewardMode.SYMMETRIC,
                  DAMAGE_REWARD_MODE: int = DamageRewardMode.SYMMETRIC
                  ) -> None:
@@ -44,6 +45,7 @@ class Hyperparameters:
         self.DAMAGE_REWARD_SCALE = DAMAGE_REWARD_SCALE
         self.EDGE_GUARD_SUCCESS = EDGE_GUARD_SUCCESS
         self.EDGE_GUARD_FAIL = EDGE_GUARD_FAIL
+        self.TOWARD_CENTRE_SCALE = TOWARD_CENTRE_SCALE
         self.ZONE_HEIGHT = ZONE_HEIGHT
         self.ZONE_WIDTH = ZONE_WIDTH
         self.ZONE_PENALTY = ZONE_PENALTY

@@ -8,6 +8,9 @@ from typing import List, Tuple
 import numpy as np
 from hyperparam import RewardMode, DamageRewardMode
 from hyperparam import DEFAULT_PARAMS as PARAMS
+from collections import defaultdict
+import functools
+import os
 
 # replace it with your own env
 # from WarehouseEnv import WarehouseBrawl
@@ -54,30 +57,51 @@ from hyperparam import DEFAULT_PARAMS as PARAMS
 # win_signal.emit(agent="player") # Triggered when the player wins
 
 # no idea
-def base_height_l2(
-    env: "WarehouseBrawl",
-    target_height: float,
-    obj_name: str = 'player'
-) -> float:
-    """Penalize asset height from its target using L2 squared kernel.
 
-    Note:
-        For flat terrain, target height is in the world frame. For rough terrain,
-        sensor readings can adjust the target height to account for the terrain.
-    """
-    # Extract the used quantities (to enable type-hinting)
-    obj = env.objects[obj_name]
+# File to store aggregate rewards
 
-    # Compute the L2 squared penalty
-    return (obj.body.position.y - target_height)**2
-    
-def damage_interaction_reward(
-    env: "WarehouseBrawl",
-    damage_reward_scale: float = PARAMS.DAMAGE_REWARD_SCALE,
-    mode: DamageRewardMode = PARAMS.DAMAGE_REWARD_MODE,
+
+LOG_FILE = "/content/logs/reward_log.txt"
+reward_totals: dict
+
+
+def set_log_file_path(path: str):
+    global LOG_FILE
+    LOG_FILE = path
+
+
+# Ensure the directory exists
+
+def log_rewards():
+    """Writes the aggregate reward totals to a log file."""
+    with open(LOG_FILE, "w") as f:
+        for reward_name, total in reward_totals.items():
+            f.write(f"{reward_name}: {total}\n")
+
+
+# usage: in process @ reward_manager() call log_rewards() at the end
+
+
+def track_reward(reward_func):
+    """Decorator to track and log rewards."""
+
+    @functools.wraps(reward_func)
+    def wrapper(*args, **kwargs):
+        reward = reward_func(*args, **kwargs)
+        reward_totals[reward_func.__name__] += reward
+        return reward
+
+    return wrapper
+
+
+@track_reward
+def damage_dealt_reward(
+        env: "WarehouseBrawl",
+        damage_reward_scale: float = PARAMS.DAMAGE_REWARD_SCALE,
+        mode: DamageRewardMode = PARAMS.DAMAGE_REWARD_MODE
 ) -> float:
     """
-    Computes the reward based on damage interactions between players.
+    Computes the reward based on damage dealt to the opponent.
 
     Modes:
     - ASYMMETRIC_OFFENSIVE (0): Reward is based only on damage dealt to the opponent
@@ -86,23 +110,56 @@ def damage_interaction_reward(
 
     Args:
         env (WarehouseBrawl): The game environment
+        damage_reward_scale (float): The scale of the reward
         mode (DamageRewardMode): Reward mode, one of DamageRewardMode
 
     Returns:
         float: The computed reward.
     """
-    # Getting player and opponent from the enviornment
-    player: "Player" = env.objects["player"]
     opponent: "Player" = env.objects["opponent"]
-
-    # Reward dependent on the mode
-    damage_taken = player.damage_taken_this_frame
     damage_dealt = opponent.damage_taken_this_frame
 
     if mode == DamageRewardMode.ASYMMETRIC_OFFENSIVE:
         reward = damage_dealt
     elif mode == DamageRewardMode.SYMMETRIC:
-        reward = damage_dealt - damage_taken
+        reward = damage_dealt
+    elif mode == DamageRewardMode.ASYMMETRIC_DEFENSIVE:
+        reward = 0.0
+    else:
+        raise ValueError(f"Invalid mode: {mode}")
+
+    return reward * damage_reward_scale
+
+
+@track_reward
+def damage_taken_reward(
+        env: "WarehouseBrawl",
+        damage_reward_scale: float = PARAMS.DAMAGE_REWARD_SCALE,
+        mode: DamageRewardMode = PARAMS.DAMAGE_REWARD_MODE,
+) -> float:
+    """
+    Computes the reward based on damage taken by the player.
+
+    Modes:
+    - ASYMMETRIC_OFFENSIVE (0): Reward is based only on damage dealt to the opponent
+    - SYMMETRIC (1): Reward is based on both dealing damage to the opponent and avoiding damage
+    - ASYMMETRIC_DEFENSIVE (2): Reward is based only on avoiding damage
+
+    Args:
+        env (WarehouseBrawl): The game environment
+        damage_reward_scale (float): The scale of the reward
+        mode (DamageRewardMode): Reward mode, one of DamageRewardMode
+
+    Returns:
+        float: The computed reward.
+    """
+    player: "Player" = env.objects["player"]
+    damage_taken = player.damage_taken_this_frame
+
+    if mode == DamageRewardMode.ASYMMETRIC_OFFENSIVE:
+        reward = 0.0
+    elif mode == DamageRewardMode.SYMMETRIC:
+        reward = -damage_taken
     elif mode == DamageRewardMode.ASYMMETRIC_DEFENSIVE:
         reward = -damage_taken
     else:
@@ -110,10 +167,12 @@ def damage_interaction_reward(
 
     return reward * damage_reward_scale
 
+
+@track_reward
 def danger_zone_reward(
-    env: "WarehouseBrawl",
-    zone_penalty: int = PARAMS.ZONE_PENALTY,
-    zone_height: float = PARAMS.ZONE_HEIGHT,
+        env: "WarehouseBrawl",
+        zone_penalty: int = PARAMS.ZONE_PENALTY,
+        zone_height: float = PARAMS.ZONE_HEIGHT,
 ) -> float:
     """
     Applies a penalty for every time frame player surpases a certain height threshold in the environment.
@@ -130,13 +189,15 @@ def danger_zone_reward(
     player: "Player" = env.objects["player"]
 
     # Apply penalty if the player is in the danger zone
-    reward = -zone_penalty if player.body.position.y >= zone_height else 0.0
+    reward = zone_penalty if player.body.position.y >= zone_height else 0.0
 
     return reward
 
+
+@track_reward
 def move_to_opponent_reward(
-    env: "WarehouseBrawl",
-    reward_scale: float = PARAMS.MOVE_TO_OPPONENT_SCALE,
+        env: "WarehouseBrawl",
+        reward_scale: float = PARAMS.MOVE_TO_OPPONENT_SCALE,
 ) -> float:
     """
     Computes the reward based on whether the agent is moving toward the opponent.
@@ -154,7 +215,7 @@ def move_to_opponent_reward(
     opponent: "Player" = env.objects["opponent"]
 
     # Extracting player velocity and position from environment
-    player_position_dif = np.array([player.body.velocity.x * env.dt , player.body.velocity.y * env.dt])
+    player_position_dif = np.array([player.body.velocity.x * env.dt, player.body.velocity.y * env.dt])
 
     direction_to_opponent = np.array([opponent.body.position.x - player.body.position.x,
                                       opponent.body.position.y - player.body.position.y])
@@ -170,15 +231,16 @@ def move_to_opponent_reward(
     # current movement (aka velocity) is in alignment with the direction they need to go in
     reward = np.dot(player_position_dif / direc_to_opp_norm, direction_to_opponent / direc_to_opp_norm)
 
-    return reward
+    return reward * reward_scale
 
+
+@track_reward
 def edge_guard_reward(
-    env: "WarehouseBrawl",
-    success_value: float = PARAMS.EDGE_GUARD_SUCCESS,
-    fail_value: float = PARAMS.EDGE_GUARD_FAIL,
-    zone_width: float = PARAMS.ZONE_WIDTH,
+        env: "WarehouseBrawl",
+        success_value: float = PARAMS.EDGE_GUARD_SUCCESS,
+        fail_value: float = PARAMS.EDGE_GUARD_FAIL,
+        zone_width: float = PARAMS.ZONE_WIDTH,
 ) -> float:
-
     """
     Computes the reward given for every time step your agent is edge guarding the opponent.
 
@@ -195,25 +257,28 @@ def edge_guard_reward(
     a: int | float = 2
 
     # condtion not met
-    if  (abs(env.objects["player"].body.position.x) < zone_width/2 - a or # player in the middle
-         abs(env.objects["opponent"].body.position.x) < zone_width/2 - a or # opponent in the middle
-         env.objects["player"].body.position.x * env.objects["opponent"].body.position.x < 0 # both players are not on the same edge
-         ):
+    if (abs(env.objects["player"].body.position.x) < zone_width / 2 - a or  # player in the middle
+            abs(env.objects["opponent"].body.position.x) < zone_width / 2 - a or  # opponent in the middle
+            env.objects["player"].body.position.x * env.objects["opponent"].body.position.x < 0
+    # both players are not on the same edge
+    ):
         return reward
-    
+
     # condition met
-    if env.objects["opponent"].damange_taken_this_frame > 0:
+    if env.objects["opponent"].damage_taken_this_frame > 0:
         reward = success_value
-    elif env.objects["player"].damange_taken_this_frame > 0:
+    elif env.objects["player"].damage_taken_this_frame > 0:
         reward = fail_value
 
     return reward
 
+
+@track_reward
 def knockout_reward(
-    env: "WarehouseBrawl",
-    mode: RewardMode = PARAMS.REWARD_MODE,
-    knockout_value_opponent: float = PARAMS.KNOCKOUT_VALUE_OPPONENT,
-    knockout_value_player: float = PARAMS.KNOCKOUT_VALUE_PLAYER,
+        env: "WarehouseBrawl",
+        mode: RewardMode = PARAMS.REWARD_MODE,
+        knockout_value_opponent: float = PARAMS.KNOCKOUT_VALUE_OPPONENT,
+        knockout_value_player: float = PARAMS.KNOCKOUT_VALUE_PLAYER,
 ) -> float:
     """
     Computes the reward based on who won the match.
@@ -235,10 +300,9 @@ def knockout_reward(
     reward = 0.0
     player_state = env.objects["player"].state
     opponent_state = env.objects["opponent"].state
-    
-    player_inKO = player_state == "KO"
-    opponent_inKO = opponent_state == "KO"
 
+    player_inKO = player_state == env.objects["player"].states["KO"]
+    opponent_inKO = opponent_state == env.objects["opponent"].states["KO"]
     agent = "player" if player_inKO else "opponent" if opponent_inKO else None
 
     if agent is None:
@@ -247,24 +311,25 @@ def knockout_reward(
     # Mode logic to compute reward
     if mode == RewardMode.ASYMMETRIC_OPPONENT:
         if agent == "opponent":
-            reward = knockout_value_opponent # Reward for opponent being knocked out
+            reward = knockout_value_opponent  # Reward for opponent being knocked out
     elif mode == RewardMode.SYMMETRIC:
         if agent == "player":
             reward = -knockout_value_player  # Penalty for player getting knocoked out
         elif agent == "opponent":
-            reward = knockout_value_opponent # Reward for opponent being knocked out
+            reward = knockout_value_opponent  # Reward for opponent being knocked out
     elif mode == RewardMode.ASYMMETRIC_PLAYER:
         if agent == "player":
             reward = -knockout_value_player  # Penalty for player getting knocked out
 
     return reward / 3 / 30
 
-def win_reward(
-    env: "WarehouseBrawl",
-    win_value: float = PARAMS.WIN_VALUE,
-    lose_value: float = PARAMS.LOSE_VALUE
-) -> float:
 
+@track_reward
+def win_reward(
+        env: "WarehouseBrawl",
+        win_value: float = PARAMS.WIN_VALUE,
+        lose_value: float = PARAMS.LOSE_VALUE
+) -> float:
     """
     Computes the reward based on knockouts.
 
@@ -278,7 +343,7 @@ def win_reward(
     Returns:
         float: The computed reward.
     """
-    
+
     player_stats = env.get_stats(0)
     opponent_stats = env.get_stats(1)
 
@@ -292,22 +357,84 @@ def win_reward(
     else:
         return 0
 
+
+@track_reward
+def toward_centre_reward(
+        env: "WarehouseBrawl",
+        reward_scale: float = PARAMS.TOWARD_CENTRE_SCALE,
+) -> float:
+    """
+    Computes the reward based on whether the agent is moving toward the centre of the stage.
+
+    :param env: The game environment
+    :param reward_scale: The scale of the reward
+    :return: The computed reward
+    """
+    player: "Player" = env.objects["player"]
+    centre = 0
+    player_position = player.body.position.x
+
+    reward = reward_scale * abs(centre - player_position)
+
+    return reward
+
+
 REWARD_FUNCTION_WEIGHTS: dict[callable, float | int] = {
-    damage_interaction_reward: 1,
-    damage_interaction_reward: 1,
-    danger_zone_reward: 5,
-    move_to_opponent_reward: 1,
-    edge_guard_reward: 1,
-    knockout_reward: 5,
-    win_reward: 5
+    damage_dealt_reward: 1000,
+    damage_taken_reward: 1000,
+    danger_zone_reward: 0.06,
+    move_to_opponent_reward: 10000,
+    edge_guard_reward: 0.001,
+    knockout_reward: 0.4,
+    toward_centre_reward: 0.0005,
+    win_reward: 0.001
 }
 
+
+def reward_initialize():
+    global reward_totals
+    os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+    reward_totals = defaultdict(float)
+    for func in REWARD_FUNCTION_WEIGHTS.keys():
+        reward_totals[func.__name__] = 0.0
+    log_rewards()
+
+
+reward_initialize()
+
+
 def load_reward(rewTerm: callable, rewardManager: callable) -> "RewardManager":
-    reward_functions: dict[str| "RewTerm"] = {}
+    reward_functions: dict[str | "RewTerm"] = {}
     for func, weight in REWARD_FUNCTION_WEIGHTS.items():
         reward_functions[func.__name__] = rewTerm(func, weight)
     reward_manager = rewardManager(reward_functions)
     return reward_manager
-    
+
+
 # usage: load_reward(rewTerm, RewardManager)
-    
+
+def print_statistics(filename: str = LOG_FILE):
+    """
+    Reads the log file and prints a formatted table with reward statistics.
+
+    Args:
+        filename (str): The path to the log file.
+    """
+    try:
+        with open(filename, 'r') as file:
+            data = {}
+            for line in file:
+                key, value = line.strip().split(': ')
+                data[key] = float(value)
+
+        # Convert numbers to scientific notation
+        df = pd.DataFrame.from_dict(data, orient='index', columns=['Total Reward'])
+        df['Total Reward'] = df['Total Reward'].apply(lambda x: f'{x:.2e}')
+
+        print(df.to_markdown())
+    except FileNotFoundError:
+        print(f"Error: File '{filename}' not found.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+
