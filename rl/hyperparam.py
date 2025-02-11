@@ -23,7 +23,7 @@ class Hyperparameters:
                  SUCCESS_VALUE: float = 50.0, 
                  FAIL_VALUE: float = 0.0, 
                  STOCK_SUCCESS_VALUE: float = 150.0, 
-                 MOVE_TO_OPPONENT_SCALE: float = 1,
+                 MOVE_TO_OPPONENT_SCALE: float = 100,
                  EDGE_GUARD_SUCCESS: float = 50.0,
                  EDGE_GUARD_FAIL: float = 0.0,
                  TOWARD_CENTRE_SCALE: float = 0.1,

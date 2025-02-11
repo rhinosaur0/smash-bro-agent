@@ -1,11 +1,8 @@
 # rewards.py previously known as environment.py
 # requires hyperparam.py
 # Reward functions for the WarehouseBrawl environment
-
-from enum import Enum
-from typing import List, Tuple
-
 import numpy as np
+import pandas as pd
 from hyperparam import RewardMode, DamageRewardMode
 from hyperparam import DEFAULT_PARAMS as PARAMS
 from collections import defaultdict
@@ -63,12 +60,19 @@ import os
 
 LOG_FILE = "/content/logs/reward_log.txt"
 reward_totals: dict = defaultdict(float)
+REWARD_VERBOSE = True
+RELOAD_FREQUENCY = 300
 
+temp = 0
 
 def set_log_file_path(path: str):
     global LOG_FILE
     LOG_FILE = path
 
+def set_reward_log_verbose_frequency(value: bool, frequency: int = 300):
+    global REWARD_VERBOSE, RELOAD_FREQUENCY
+    REWARD_VERBOSE = value
+    RELOAD_FREQUENCY = frequency
 
 
 # usage: in process @ reward_manager() call log_rewards() at the end
@@ -380,11 +384,11 @@ def toward_centre_reward(
 REWARD_FUNCTION_WEIGHTS: dict[callable, float | int] = {
     damage_dealt_reward: 1000,
     damage_taken_reward: 10,
-    danger_zone_reward: 0.006,
+    danger_zone_reward: 0.6,
     move_to_opponent_reward: 100000,
-    edge_guard_reward: 0.001,
+    edge_guard_reward: 0.01,
     knockout_reward: 0.4,
-    toward_centre_reward: 0.005,
+    toward_centre_reward: 5,
     win_reward: 0.1
 }
 # Ensure the directory exists
@@ -396,12 +400,16 @@ def reward_initialize():
         reward_totals[func.__name__] = 0.0
 
 def log_rewards():
-    global reward_totals
+    global reward_totals, temp
     """Writes the aggregate reward totals to a log file."""
     with open(LOG_FILE, "w") as f:
         for reward_name, total in reward_totals.items():
             f.write(f"{reward_name}: {total}\n")
-    reward_initialize()
+    if REWARD_VERBOSE and temp % RELOAD_FREQUENCY == 0:
+        print_statistics()
+        reward_initialize()
+        temp = 0
+    temp += 1
 
 reward_initialize()
 
