@@ -2,6 +2,8 @@
 # requires hyperparam.py
 # Reward functions for the WarehouseBrawl environment
 
+# *WARNING: POTENTIAL VULNERABILITY: PATH INJECTION*
+
 import numpy as np
 import pandas as pd
 from hyperparam import RewardMode, DamageRewardMode
@@ -369,6 +371,7 @@ def log_rewards(do_log_now: bool = False, block_verbose: bool = False) -> None:
     :type block_verbose: bool
     """
     global reward_totals, temp
+
     with open(_LOG_FILE, "w") as f:
         for reward_name, total in reward_totals.items():
             f.write(f"{reward_name}: {total}\n")
@@ -417,6 +420,11 @@ def print_statistics(filename: str = _LOG_FILE) -> None:
         # Convert values to scientific notation and display as a markdown table
         df = pd.DataFrame.from_dict(data, orient='index', columns=['Total Reward'])
         df['Total Reward'] = df['Total Reward'].apply(lambda x: f'{x:.2e}')
+
+        # Add grand total row
+        grand_total = df['Total Reward'].apply(lambda x: float(x)).sum()
+        df.loc['Grand Total'] = f'{grand_total:.2e}'
+
         print(df.to_markdown())
 
     except FileNotFoundError:
