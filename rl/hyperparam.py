@@ -13,7 +13,7 @@ class DamageRewardMode(Enum):
     SYMMETRIC = 1
     ASYMMETRIC_DEFENSIVE = 2
 
-# panalties shall be negative values
+# penalties shall be negative values
 class Hyperparameters:
     def __init__(self,   
                  WIN_VALUE: float = 30.0,
@@ -24,13 +24,14 @@ class Hyperparameters:
                  FAIL_VALUE: float = 0.0, 
                  STOCK_SUCCESS_VALUE: float = 150.0, 
                  MOVE_TO_OPPONENT_SCALE: float = 100,
-                 EDGE_GUARD_SUCCESS: float = 50.0,
-                 EDGE_GUARD_FAIL: float = 0.0,
+                 EDGE_GUARD_SUCCESS: float = 0.05,
+                 EDGE_GUARD_FAIL: float = 0.01,
                  TOWARD_CENTRE_SCALE: float = 0.1,
-                 DAMAGE_REWARD_SCALE: float = 1,
+                 DAMAGE_REWARD_SCALE: float = 0.01,
                  ZONE_HEIGHT: float = 7,
                  ZONE_WIDTH: float = 10.67,
-                 ZONE_PENALTY: float = -20.0,
+                 ZONE_PENALTY: float = -0.01,
+                 OPPONENT_ZONE_REWARD: float = 0.01,
                  REWARD_MODE: int = RewardMode.SYMMETRIC,
                  DAMAGE_REWARD_MODE: int = DamageRewardMode.SYMMETRIC
                  ) -> None:
@@ -45,6 +46,7 @@ class Hyperparameters:
         self.DAMAGE_REWARD_SCALE = DAMAGE_REWARD_SCALE
         self.EDGE_GUARD_SUCCESS = EDGE_GUARD_SUCCESS
         self.EDGE_GUARD_FAIL = EDGE_GUARD_FAIL
+        self.OPPONENT_ZONE_REWARD = OPPONENT_ZONE_REWARD
         self.TOWARD_CENTRE_SCALE = TOWARD_CENTRE_SCALE
         self.ZONE_HEIGHT = ZONE_HEIGHT
         self.ZONE_WIDTH = ZONE_WIDTH
@@ -54,7 +56,7 @@ class Hyperparameters:
 
 # create an object of class hyperparameters that has default reward values
 DEFAULT_PARAMS = Hyperparameters()
-# create an an object of class hyperparameters that has really offensive reward values
+# create an object of class hyperparameters that has really offensive reward values
 OFFENSIVE_AGENT_PARAMS = Hyperparameters(
     WIN_VALUE = 300.0,
     LOSE_VALUE = 200.0,

@@ -34,7 +34,7 @@ def set_log_file_path(path: str) -> None:
 
 def set_reward_log_verbose_frequency(value: bool,
                                      frequency: int = 300
-) -> None:
+                                     ) -> None:
     """
     Sets the verbosity and frequency of reward logging.
 
@@ -67,7 +67,7 @@ def track_reward(reward_func: callable) -> callable:
 def damage_dealt_reward(env: "WarehouseBrawl",
                         damage_reward_scale: float = PARAMS.DAMAGE_REWARD_SCALE,
                         mode: DamageRewardMode = PARAMS.DAMAGE_REWARD_MODE
-) -> float:
+                        ) -> float:
     """
     Computes the reward based on damage dealt to the opponent.
 
@@ -87,7 +87,7 @@ def damage_dealt_reward(env: "WarehouseBrawl",
 def damage_taken_reward(env: "WarehouseBrawl",
                         damage_reward_scale: float = PARAMS.DAMAGE_REWARD_SCALE,
                         mode: DamageRewardMode = PARAMS.DAMAGE_REWARD_MODE
-) -> float:
+                        ) -> float:
     """
     Computes the reward based on damage taken by the player.
 
@@ -101,23 +101,6 @@ def damage_taken_reward(env: "WarehouseBrawl",
 
     reward = -damage_taken if mode in {DamageRewardMode.SYMMETRIC, DamageRewardMode.ASYMMETRIC_DEFENSIVE} else 0.0
     return reward * damage_reward_scale
-
-
-@track_reward
-def danger_zone_reward(env: "WarehouseBrawl",
-                       zone_penalty: int = PARAMS.ZONE_PENALTY,
-                       zone_height: float = PARAMS.ZONE_HEIGHT
-) -> float:
-    """
-    Applies a penalty when the player surpasses a certain height threshold.
-
-    :param env: The game environment.
-    :param zone_penalty: The penalty applied when the player is in the danger zone.
-    :param zone_height: The height threshold defining the danger zone.
-    :return: The computed penalty.
-    """
-    player: "Player" = env.objects["player"]
-    return zone_penalty if player.body.position.y >= zone_height else 0.0
 
 
 @track_reward
@@ -146,6 +129,31 @@ def danger_zone_reward(
 
     return reward
 
+
+@track_reward
+def opponent_in_danger_zone(env: "WarehouseBrawl",
+                            zone_height: float = PARAMS.ZONE_HEIGHT,
+                            opponent_zone_reward: float = PARAMS.OPPONENT_ZONE_REWARD
+                            ) -> float:
+    """
+    Applies a reward for every time frame opponent surpasses a certain height threshold in the environment.
+
+    :param env: The game environment.
+    :type env: WarehouseBrawl
+    :param zone_height: The height threshold defining the danger zone.
+    :type zone_height: float
+    :param opponent_zone_reward: The reward applied when the opponent is in the danger zone.
+    :type opponent_zone_reward: float
+    :return: The computed reward
+    :rtype: float
+    """
+    # Get opponent object from the environment
+    opponent: "Player" = env.objects["opponent"]
+
+    # Apply penalty if the player is in the danger zone
+    reward = opponent_zone_reward if opponent.body.position.y >= zone_height else 0.0
+
+    return reward
 
 @track_reward
 def move_to_opponent_reward(
@@ -217,7 +225,7 @@ def edge_guard_reward(
     if (abs(env.objects["player"].body.position.x) < zone_width / 2 - a or  # player in the middle
             abs(env.objects["opponent"].body.position.x) < zone_width / 2 - a or  # opponent in the middle
             env.objects["player"].body.position.x * env.objects["opponent"].body.position.x < 0
-    # both players are not on the same edge
+            # both players are not on the same edge
     ):
         return reward
 
@@ -275,14 +283,14 @@ def knockout_reward(
         if agent == "player":
             reward = -knockout_value_player  # Penalty for player getting knocked out
 
-    return reward / 3 / 30
+    return reward / 30
 
 
 @track_reward
 def win_reward(
         env: "WarehouseBrawl",
         win_value: float = PARAMS.WIN_VALUE,
-        lose_value: float = PARAMS.LOSE_VALUE
+        lose_value: float = -PARAMS.LOSE_VALUE
 ) -> float:
     """
     Computes the reward based on knockouts.
@@ -306,15 +314,15 @@ def win_reward(
     if is_opponent_lost:
         return win_value
     elif is_player_lost:
-        return lose_value
+        return -lose_value
     else:
         return 0
 
 
 @track_reward
 def toward_centre_reward(
-    env: "WarehouseBrawl",
-    reward_scale: float = PARAMS.TOWARD_CENTRE_SCALE,
+        env: "WarehouseBrawl",
+        reward_scale: float = PARAMS.TOWARD_CENTRE_SCALE,
 
 ) -> float:
     """
@@ -337,15 +345,40 @@ def toward_centre_reward(
     return reward * reward_scale
 
 
+@track_reward
+def truce_reward(env: "WarehouseBrawl") -> float:
+    """
+    Computes the reward if both players are not fighting (i.e. state is standing).
+
+    :param env: The game environment.
+    :type env: WarehouseBrawl
+    :return: The computed reward.
+    :rtype: float
+    """
+    player_state = env.objects["player"].state
+    opponent_state = env.objects["opponent"].state
+
+    player_standing = (player_state == env.objects["player"].states["standing"] or
+                       player_state == env.objects["player"].states["taunt"] or
+                       player_state == env.objects["player"].states["dodge"])
+    opponent_standing = (opponent_state == env.objects["opponent"].states["standing"] or
+                         opponent_state == env.objects["opponent"].states["taunt"] or
+                         opponent_state == env.objects["opponent"].states["dodge"])
+
+    return -1.0 if player_standing and opponent_standing else -0.5 if player_state == opponent_state else 0.0
+
+
 REWARD_FUNCTION_WEIGHTS: dict[callable, float | int] = {
-    damage_dealt_reward: 1000,
-    damage_taken_reward: 10,
+    damage_dealt_reward: 10,
+    damage_taken_reward: 0.1,
     danger_zone_reward: 0.6,
-    move_to_opponent_reward: 100000,
+    move_to_opponent_reward: 30,
     edge_guard_reward: 0.01,
+    truce_reward: 30,
     knockout_reward: 0.4,
-    toward_centre_reward: 5,
-    win_reward: 0.1
+    toward_centre_reward: 70,
+    win_reward: 3,
+    opponent_in_danger_zone: 3
 }
 
 
@@ -384,7 +417,7 @@ def log_rewards(do_log_now: bool = False, block_verbose: bool = False) -> None:
 
 def load_reward(rewTerm: callable,
                 rewardManager: callable
-) -> "RewardManager":
+                ) -> "RewardManager":
     """
     Initializes and returns a RewardManager with predefined reward functions.
 
@@ -431,6 +464,23 @@ def print_statistics(filename: str = _LOG_FILE) -> None:
         print(f"Error: The file '{filename}' was not found.")
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
+
+
+def print_reward_weights() -> None:
+    for func, weight in REWARD_FUNCTION_WEIGHTS.items():
+        print(f"Reward function {func.__name__} with weight {weight}")
+
+
+def adjust_reward_weights(new_weights: list[float | int]) -> None:
+    """
+    Adjusts the weights of the reward functions.
+
+    Load a new reward manager after adjusting the weights.
+
+    :param new_weights: The new weights for the reward functions.
+    """
+    for i, (func, _) in enumerate(REWARD_FUNCTION_WEIGHTS.items()):
+        REWARD_FUNCTION_WEIGHTS[func] = new_weights[i]
 
 
 reward_initialize()
