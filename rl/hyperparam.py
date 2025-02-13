@@ -3,31 +3,34 @@
 
 from enum import Enum
 
+
 class RewardMode(Enum):
     ASYMMETRIC_OPPONENT = 0
     SYMMETRIC = 1
     ASYMMETRIC_PLAYER = 2
+
 
 class DamageRewardMode(Enum):
     ASYMMETRIC_OFFENSIVE = 0
     SYMMETRIC = 1
     ASYMMETRIC_DEFENSIVE = 2
 
+
 # penalties shall be negative values
 class Hyperparameters:
     def __init__(self,   
                  WIN_VALUE: float = 30.0,
                  LOSE_VALUE: float = 30.0,
-                 KNOCKOUT_VALUE_PLAYER: float = 100.0, 
-                 KNOCKOUT_VALUE_OPPONENT: float = 100.0, 
+                 KNOCKOUT_VALUE_PLAYER: float = 300.0,
+                 KNOCKOUT_VALUE_OPPONENT: float = 350.0,
                  SUCCESS_VALUE: float = 50.0, 
                  FAIL_VALUE: float = 0.0, 
                  STOCK_SUCCESS_VALUE: float = 150.0, 
-                 MOVE_TO_OPPONENT_SCALE: float = 100,
+                 MOVE_TO_OPPONENT_SCALE: float = 1,
                  EDGE_GUARD_SUCCESS: float = 0.05,
                  EDGE_GUARD_FAIL: float = 0.01,
                  TOWARD_CENTRE_SCALE: float = 0.1,
-                 DAMAGE_REWARD_SCALE: float = 0.01,
+                 DAMAGE_REWARD_SCALE: float = 1,
                  ZONE_HEIGHT: float = 7,
                  ZONE_WIDTH: float = 10.67,
                  ZONE_PENALTY: float = -0.01,
@@ -54,6 +57,7 @@ class Hyperparameters:
         self.REWARD_MODE = REWARD_MODE
         self.DAMAGE_REWARD_MODE = DAMAGE_REWARD_MODE
 
+
 # create an object of class hyperparameters that has default reward values
 DEFAULT_PARAMS = Hyperparameters()
 # create an object of class hyperparameters that has really offensive reward values
@@ -61,7 +65,7 @@ OFFENSIVE_AGENT_PARAMS = Hyperparameters(
     WIN_VALUE = 300.0,
     LOSE_VALUE = 200.0,
     KNOCKOUT_VALUE_PLAYER = 100.0,
-    KNOCKOUT_VALUE_OPPONENT = 100.0,
+    KNOCKOUT_VALUE_OPPONENT = 300.0,
     SUCCESS_VALUE = 50.0,
     FAIL_VALUE = 0.0,
     STOCK_SUCCESS_VALUE = 150.0,

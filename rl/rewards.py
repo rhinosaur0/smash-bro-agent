@@ -86,7 +86,6 @@ def damage_dealt_reward(env: "WarehouseBrawl",
 @track_reward
 def damage_taken_reward(env: "WarehouseBrawl",
                         damage_reward_scale: float = PARAMS.DAMAGE_REWARD_SCALE,
-                        mode: DamageRewardMode = PARAMS.DAMAGE_REWARD_MODE
                         ) -> float:
     """
     Computes the reward based on damage taken by the player.
@@ -98,8 +97,7 @@ def damage_taken_reward(env: "WarehouseBrawl",
     """
     player: "Player" = env.objects["player"]
     damage_taken = player.damage_taken_this_frame
-
-    reward = -damage_taken if mode in {DamageRewardMode.SYMMETRIC, DamageRewardMode.ASYMMETRIC_DEFENSIVE} else 0.0
+    reward = -damage_taken
     return reward * damage_reward_scale
 
 
@@ -182,7 +180,7 @@ def move_to_opponent_reward(
     direction_to_opponent = np.array([opponent.body.position.x - player.body.position.x,
                                       opponent.body.position.y - player.body.position.y])
 
-    # Prevent division by zero or extremely small values
+    # Prevent division by zero or tiny values
     direc_to_opp_norm = np.linalg.norm(direction_to_opponent)
     player_pos_dif_norm = np.linalg.norm(player_position_dif)
 
@@ -191,7 +189,7 @@ def move_to_opponent_reward(
 
     # Compute the dot product of the normalized vectors to figure out how much
     # current movement (aka velocity) is in alignment with the direction they need to go in
-    reward = np.dot(player_position_dif / direc_to_opp_norm, direction_to_opponent / direc_to_opp_norm)
+    reward = np.dot(player_position_dif / player_pos_dif_norm, direction_to_opponent / direc_to_opp_norm)
 
     return reward * reward_scale
 
@@ -221,7 +219,7 @@ def edge_guard_reward(
 
     a: int | float = 2
 
-    # condtion not met
+    # condition not met
     if (abs(env.objects["player"].body.position.x) < zone_width / 2 - a or  # player in the middle
             abs(env.objects["opponent"].body.position.x) < zone_width / 2 - a or  # opponent in the middle
             env.objects["player"].body.position.x * env.objects["opponent"].body.position.x < 0
@@ -260,11 +258,16 @@ def knockout_reward(
     :rtype: float
     """
     reward = 0.0
-    player_state = env.objects["player"].state
-    opponent_state = env.objects["opponent"].state
 
-    player_inKO = player_state == env.objects["player"].states["KO"]
-    opponent_inKO = opponent_state == env.objects["opponent"].states["KO"]
+    player = env.objects["player"]
+    opponent = env.objects["opponent"]
+
+
+    player_state = player.state
+    opponent_state = opponent.state
+
+    player_inKO = player_state == player.states["KO"]
+    opponent_inKO = opponent_state == opponent.states["KO"]
     agent = "player" if player_inKO else "opponent" if opponent_inKO else None
 
     if agent is None:
@@ -276,14 +279,14 @@ def knockout_reward(
             reward = knockout_value_opponent  # Reward for opponent being knocked out
     elif mode == RewardMode.SYMMETRIC:
         if agent == "player":
-            reward = -knockout_value_player  # Penalty for player getting knocoked out
+            reward = -knockout_value_player  # Penalty for player getting knocked out
         elif agent == "opponent":
             reward = knockout_value_opponent  # Reward for opponent being knocked out
     elif mode == RewardMode.ASYMMETRIC_PLAYER:
         if agent == "player":
             reward = -knockout_value_player  # Penalty for player getting knocked out
 
-    return reward / 30
+    return reward / 30 / 3
 
 
 @track_reward
@@ -365,20 +368,43 @@ def truce_reward(env: "WarehouseBrawl") -> float:
                          opponent_state == env.objects["opponent"].states["taunt"] or
                          opponent_state == env.objects["opponent"].states["dodge"])
 
-    return -1.0 if player_standing and opponent_standing else -0.5 if player_state == opponent_state else 0.0
+    return -2.0 if (player_standing and opponent_standing) else (-1.5 if (player_state == opponent_state) else 0.0)
+
+
+@track_reward
+def useless_attack_reward(env: "WarehouseBrawl") -> float:
+    """
+    Penalizes the agent if it is in an attack state but does not deal any damage in the current frame.
+
+    :param env: The game environment.
+    :param penalty_value: The magnitude of the penalty to be applied.
+    :return: A negative penalty if the agent is attacking with no damage dealt, else 0.
+    """
+    player: "Player" = env.objects["player"]
+    opponent: "Player" = env.objects["opponent"]
+
+    # Check if the player's current state is 'attack'.
+    # (Ensure that the 'attack' state is defined in player.states.)
+    if player.state == player.states["attack"]:
+        # If in attack state and no damage is dealt this frame, apply the penalty.
+        if player.damage_done == 0:
+            return -1
+
+    return 0.0
 
 
 REWARD_FUNCTION_WEIGHTS: dict[callable, float | int] = {
     damage_dealt_reward: 10,
     damage_taken_reward: 0.1,
     danger_zone_reward: 0.6,
-    move_to_opponent_reward: 30,
+    move_to_opponent_reward: 0.01,
     edge_guard_reward: 0.01,
     truce_reward: 30,
     knockout_reward: 0.4,
     toward_centre_reward: 70,
     win_reward: 3,
-    opponent_in_danger_zone: 3
+    opponent_in_danger_zone: 3,
+    useless_attack_reward: 1,
 }
 
 
@@ -405,13 +431,22 @@ def log_rewards(do_log_now: bool = False, block_verbose: bool = False) -> None:
     """
     global reward_totals, temp
 
+    if temp % _RELOAD_FREQUENCY == 0 or do_log_now:
+        temp = 0
+    else:
+        temp += 1
+        return
+
+    for reward_name, total in reward_totals.items():
+        reward_totals[reward_name] = reward_totals[reward_name] * REWARD_FUNCTION_WEIGHTS[eval(reward_name)]
+
     with open(_LOG_FILE, "w") as f:
         for reward_name, total in reward_totals.items():
             f.write(f"{reward_name}: {total}\n")
-    if (_REWARD_VERBOSE and temp % _RELOAD_FREQUENCY == 0) or do_log_now:
+    if _REWARD_VERBOSE:
         print_statistics() if not block_verbose else None
         reward_initialize()
-        temp = 0
+
     temp += 1
 
 
